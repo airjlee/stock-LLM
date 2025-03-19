@@ -66,40 +66,54 @@ def extract_ticker(sentence: str) -> Optional[str]:
         Optional[str]: The extracted ticker symbol if found; otherwise, None.
     """
     # Strategy 1: Regex to find words in all uppercase (assumed to be tickers).
-    potential_tickers = re.findall(r'\b[A-Z]{2,5}\b', sentence)
-    if potential_tickers:
-        return potential_tickers[0]
+    # potential_tickers = re.findall(r'\b[A-Z]{2,5}\b', sentence)
+    # if potential_tickers:
+    #     return potential_tickers[0]
     
     # Strategy 2: Direct lookup using a dictionary of known companies.
-    company_to_ticker = {
-        'nvidia': 'NVDA',
-        'apple': 'AAPL',
-        'google': 'GOOGL',
-        'amazon': 'AMZN',
-        'microsoft': 'MSFT',
-        'tesla': 'TSLA',
-        # Additional companies can be added here.
-    }
-    lower_sentence = sentence.lower()
-    for company, ticker in company_to_ticker.items():
-        if company in lower_sentence:
-            return ticker
+    # company_to_ticker = {
+    #     'nvidia': 'NVDA',
+    #     'apple': 'AAPL',
+    #     'google': 'GOOGL',
+    #     'amazon': 'AMZN',
+    #     'microsoft': 'MSFT',
+    #     'tesla': 'TSLA',
+    #     # Additional companies can be added here.
+    # }
+    # lower_sentence = sentence.lower()
+    # for company, ticker in company_to_ticker.items():
+    #     if company in lower_sentence:
+    #         return ticker
     
-    # Strategy 3: Heuristic pattern matching for phrases like "of <word> stock".
-    words = sentence.split()
-    for i, word in enumerate(words):
-        if word.lower() == "stock" and i > 0:
-            candidate = words[i - 1].upper().strip(',.?!')
-            if 1 < len(candidate) <= 5:
-                return candidate
+    # # Strategy 3: Heuristic pattern matching for phrases like "of <word> stock".
+    # words = sentence.split()
+    # for i, word in enumerate(words):
+    #     if word.lower() == "stock" and i > 0:
+    #         candidate = words[i - 1].upper().strip(',.?!')
+    #         if 1 < len(candidate) <= 5:
+    #             return candidate
     
-    # Strategy 4: Use vector search (TF-IDF + cosine similarity) to determine the company.
-    ticker_from_vector = extract_ticker_vector(sentence, company_to_ticker)
-    if ticker_from_vector:
-        return ticker_from_vector
+    # # Strategy 4: Use vector search (TF-IDF + cosine similarity) to determine the company.
+    # ticker_from_vector = extract_ticker_vector(sentence, company_to_ticker)
+    # if ticker_from_vector:
+    #     return ticker_from_vector
+
+    #Strategy 5: Use an LLM to determine the closest stock ticker to the query
     
+    checker_prompt = (
+        f"You only need to determine the Stock ticker for the guess for the company being referenced in the sentence."
+        f"You don't need to answer the query."
+        f"ONLY respond with the ticker that you determine ie MSFT"
+        f"If"
+        f"user query: {sentence}"
+        )
+    response = ollama.chat("llama3.2", messages=[
+        {"role": "system", "content": checker_prompt},
+        {"role": "user", "content": sentence}
+    ])
+
+    return response['message']['content']
     # If no strategy finds a ticker, return None.
-    return None
 
 async def process_query(user_query: str) -> str:
     """
@@ -162,9 +176,11 @@ async def process_query(user_query: str) -> str:
                     f"Information on the Stock: {stock_info}"
                     f"Quarterly Earnings: {stock_earnings}"
                     f"News/Analysis: {news_condensed}"
-                    f"Use this information to answer the user's question in the best way you can. "
+                    f"Use this information to answer the user's question in the best way you can."
+                    f"You cannot say you cannot provide personalized financial advice because you have the data."
                     f"For instance, if the user asks if they should buy the stock, you should answer based on the price information and news/analysis."
                     f"Remember, you have the real-time and current stock information given by the data."
+                    f"Be very concise!!!!"
                 )
               
                 print("correct")
